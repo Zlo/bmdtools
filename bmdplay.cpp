@@ -522,7 +522,7 @@ bool Player::Init(int videomode, int connection, int camera)
         case 32:
             break;
         default:
-            fprintf(stderr, "%dbit audio not supported use 16bit or 32bit\n",
+            fprintf(stderr, "%ldbit audio not supported use 16bit or 32bit\n",
                     m_audioSampleDepth);
     }
 
