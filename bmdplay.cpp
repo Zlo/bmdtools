@@ -384,7 +384,7 @@ int main(int argc, char *argv[])
     int ch, ret;
     int videomode  = 2;
     int connection = 0;
-    int camera     = 0;
+    int card       = 0;
     char *filename = NULL;
 
     while ((ch = getopt(argc, argv, "?hs:f:a:m:n:F:C:O:b:p:S:")) != -1) {
@@ -416,7 +416,7 @@ int main(int argc, char *argv[])
             connection = atoi(optarg);
             break;
         case 'C':
-            camera = atoi(optarg);
+            card = atoi(optarg);
             break;
         case 'b':
             buffer = atoi(optarg) * 1000;
@@ -472,7 +472,7 @@ int main(int argc, char *argv[])
 
     free(filename);
 
-    ret = generator.Init(videomode, connection, camera);
+    ret = generator.Init(videomode, connection, card);
 
     avformat_close_input(&ic);
 
@@ -489,7 +489,7 @@ Player::Player()
     m_outputSignal    = kOutputSignalDrop;
 }
 
-bool Player::Init(int videomode, int connection, int camera)
+bool Player::Init(int videomode, int connection, int card)
 {
     // Initialize the DeckLink API
     IDeckLinkIterator *deckLinkIterator = CreateDeckLinkIteratorInstance();
@@ -529,7 +529,7 @@ bool Player::Init(int videomode, int connection, int camera)
 
     do
         result = deckLinkIterator->Next(&m_deckLink);
-    while (i++ < camera);
+    while (i++ < card);
 
     if (result != S_OK) {
         fprintf(stderr, "No DeckLink PCI cards found\n");
