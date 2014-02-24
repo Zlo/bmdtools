@@ -502,9 +502,6 @@ bool Player::Init(int videomode, int connection, int camera)
         goto bail;
     }
 
-    m_audioSampleDepth =
-        av_get_exact_bits_per_sample(audio_st->codec->codec_id);
-
     switch (audio_st->codec->channels) {
         case  2:
         case  8:
@@ -516,6 +513,10 @@ bool Player::Init(int videomode, int connection, int camera)
                     audio_st->codec->channels);
             goto bail;
     }
+
+    m_audioSampleDepth =
+        av_get_bits_per_sample(audio_st->codec->codec_id);
+
 
     switch (m_audioSampleDepth) {
         case 16:
