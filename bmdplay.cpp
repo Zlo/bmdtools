@@ -674,7 +674,7 @@ void Player::StartRunning(int videomode)
     if (m_deckLinkOutput->EnableAudioOutput(bmdAudioSampleRate48kHz,
                                             m_audioSampleDepth,
                                             audio_st->codec->channels,
-                                            bmdAudioOutputStreamTimestamped) !=
+                                            bmdAudioOutputStreamContinuous) !=
         S_OK) {
         fprintf(stderr, "Failed to enable audio output\n");
         return;
