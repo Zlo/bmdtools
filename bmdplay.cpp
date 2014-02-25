@@ -19,6 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#define __STDC_FORMAT_MACROS 1
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -49,6 +51,10 @@ AVFormatContext *ic;
 AVFrame *avframe;
 AVStream *audio_st = NULL;
 AVStream *video_st = NULL;
+#if (DEBUG > 1)
+time_t ts_now;
+time_t ts_start;
+#endif
 
 static enum PixelFormat pix_fmt = PIX_FMT_UYVY422;
 static BMDPixelFormat pix       = bmdFormat8BitYUV;
@@ -216,8 +222,18 @@ void *fill_queues(void *unused)
                     first_audio_pts =
                         av_rescale_q(pkt.pts, video_st->time_base,
                                      audio_st->time_base);
+#if (DEBUG > 0)
+                    fprintf(stderr, "First VideoPTS: %" PRId64 " -> Audio pts: %" PRId64 "\n" \
+                            "Audio TB: %d/%d, Audio TB: %d/%d\n",
+                        first_video_pts, first_audio_pts,
+                        audio_st->time_base.num, audio_st->time_base.den,
+                        video_st->time_base.num, video_st->time_base.den);
+#endif
                 }
                 pkt.pts -= first_video_pts;
+#if (DEBUG > 1)
+                fprintf(stderr, "Read VideoPTS: %" PRId64 "\n", pkt.pts);
+#endif
             }
             packet_queue_put(&videoqueue, &pkt);
             break;
@@ -228,13 +244,23 @@ void *fill_queues(void *unused)
                     first_video_pts =
                         av_rescale_q(pkt.pts, audio_st->time_base,
                                      video_st->time_base);
+#if (DEBUG > 0)
+                    fprintf(stderr, "First AudioPTS: %" PRId64 " -> Video pts: %" PRId64 "\n" \
+                                "Audio TB: %d/%d, Audio TB: %d/%d\n",
+                        first_audio_pts, first_video_pts,
+                        audio_st->time_base.num, audio_st->time_base.den,
+                        video_st->time_base.num, video_st->time_base.den);
+#endif
                 }
                 pkt.pts -= first_audio_pts;
+#if (DEBUG > 1)
+                fprintf(stderr, "Read AudioPTS: %" PRId64 "\n", pkt.pts);
+#endif
             }
             packet_queue_put(&audioqueue, &pkt);
             break;
         case AVMEDIA_TYPE_DATA:
-	    packet_queue_put(&dataqueue, &pkt);
+            packet_queue_put(&dataqueue, &pkt);
             break;
         }
     }
@@ -302,7 +328,7 @@ void print_output_modes(IDeckLink *deckLink)
         // Release the IDeckLinkDisplayMode object to prevent a leak
         displayMode->Release();
     }
-//	printf("\n");
+//  printf("\n");
 bail:
     // Ensure that the interfaces we obtained are released to prevent a memory leak
     if (displayModeIterator != NULL)
@@ -432,6 +458,10 @@ int main(int argc, char *argv[])
 
     if (!filename)
         return usage(1);
+
+#if (DEBUG > 1)
+    (void)time(&ts_start);
+#endif
 
     av_register_all();
     ic = avformat_alloc_context();
@@ -739,6 +769,13 @@ void Player::ScheduleNextFrame(bool prerolling)
         sws_scale(sws, avframe->data, avframe->linesize, 0, avframe->height,
                   picture.data, picture.linesize);
 
+#if (DEBUG > 1)
+        (void)time(&ts_now);
+        fprintf(stderr, "Scheduling a video frame @ %" PRId64 " (base %d/%d => %.2f) (RT: %4u)\n",
+                pkt.pts, video_st->time_base.num, video_st->time_base.den,
+                (float)pkt.pts * video_st->time_base.num / video_st->time_base.den,
+                (unsigned int)(ts_now - ts_start));
+#endif
         if (m_deckLinkOutput->ScheduleVideoFrame(videoFrame,
                                                  pkt.pts *
                                                  video_st->time_base.num,
@@ -774,6 +811,13 @@ void Player::WriteNextAudioSamples()
 
     samples = pkt.size / bytes_per_sample;
 
+#if (DEBUG > 2)
+    (void)time(&ts_now);
+    fprintf(stderr, "Scheduling %d audio samples, starting @ %" PRId64 " (base %d/%d => %.2f) (RT: %4u)...",
+            samples, pkt.pts, audio_st->time_base.num, audio_st->time_base.den,
+            (float)pkt.pts * audio_st->time_base.num / audio_st->time_base.den,
+            (unsigned int)(ts_now - ts_start));
+#endif
     do {
         if (m_deckLinkOutput->ScheduleAudioSamples(pkt.data +
                                                    off * bytes_per_sample,
@@ -784,6 +828,10 @@ void Player::WriteNextAudioSamples()
         samples -= samplesWritten;
         off     += samplesWritten;
     } while (samples > 0);
+
+#if (DEBUG > 2)
+    fprintf(stderr, " done\n");
+#endif
 
     av_free_packet(&pkt);
 }
